@@ -14,9 +14,11 @@ from datetime import datetime, timedelta
 import copy
 import os
 import subprocess
+from pathlib import Path
 
+home = str(Path.home())
 
-file = "data.json"
+file = home+"/bin/data.json"
 datetimeFormat = '%Y-%m-%dT%H:%M:%S.%f'
 pomodoroLen = 25
 breakLen = 5
@@ -33,28 +35,53 @@ def main():
         file = args.file
 
     if args.pomodoro:
-        data = copy.copy(x)
-        pomodoroLen = int(args.pomodoro)
-        now = datetime.now().strftime(datetimeFormat)
+        newPomodoro(int(args.pomodoro))
 
-        data["start"] = now
-        data["type"] = "pomodoro"
-        data["length"] = pomodoroLen
-        data["end"] = 0
-        writeToFile(data)
 
     if args.sbreak:
-        data = copy.copy(x)
-        breakLen = int(args.sbreak)
-        now = datetime.now().strftime(datetimeFormat)
+        newBreak(int(args.sbreak))
 
-        data["start"] = now
-        data["type"] = "break"
-        data["length"] = breakLen
-        writeToFile(data)
+    if args.next:
+        nextTimer()
 
     if args.check:
         checkTime()
+
+def nextTimer():
+    try:
+        with open(file, 'r') as f:
+            try:
+                lines = f.read().splitlines()
+                line = lines[-1]
+                data = json.loads(line)
+            except Exception as e:
+                raise Exception("Not valid json format")
+    except Exception as e:
+        return
+
+    if (data["type"] == "pomodoro") and (data["end"] != 0):
+        newBreak(breakLen)
+    elif (data["type"] == "break") and (data["end"] != 0):
+        newPomodoro(pomodoroLen)
+
+def newBreak(length):
+    data = copy.copy(x)
+    now = datetime.now().strftime(datetimeFormat)
+
+    data["start"] = now
+    data["type"] = "break"
+    data["length"] = length
+    writeToFile(data)
+
+def newPomodoro(length):
+    data = copy.copy(x)
+    now = datetime.now().strftime(datetimeFormat)
+
+    data["start"] = now
+    data["type"] = "pomodoro"
+    data["length"] = length
+    data["end"] = 0
+    writeToFile(data)
 
 def writeToFile(data):
     mode = 'a' if os.path.exists(file) else 'w'
@@ -62,7 +89,6 @@ def writeToFile(data):
     with open(file, mode) as f:
         f.write(json.dumps(data))
         f.write("\n")
-
 
 def checkTime():
     try:
@@ -84,7 +110,7 @@ def checkTime():
     for l in lines:
         lineData = json.loads(l)
         start = datetime.strptime(lineData["start"], datetimeFormat)
-        if (lineData["end"] != 0) and (start.date() == today):
+        if (lineData["end"] != 0) and (start.date() == today) and (lineData['type'] == 'pomodoro'):
             sumToday += 1
 
     if data["end"] == 0:
@@ -107,9 +133,6 @@ def checkTime():
     returnString = "{} {} {}".format(sumToday, tp, cntd)
     print(returnString)
 
-
-
-
 def notify(data):
     tp = data['type']
     if (tp == 'pomodoro'):
@@ -129,6 +152,7 @@ if __name__ == '__main__':
     parser.add_argument("--pomodoro", "-p", const=pomodoroLen, nargs='?', help="Start a pomodoro timer")
     parser.add_argument("--sbreak", "-b", const=breakLen, nargs='?',help="Start a break timer")
     parser.add_argument("--check", "-c", action='store_true',help="Check time")
+    parser.add_argument("--next", "-n", action='store_true',help="Start next timer")
 
     args = parser.parse_args()
     main()
