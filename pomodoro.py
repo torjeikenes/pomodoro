@@ -72,12 +72,12 @@ def checkTime():
                 line = lines[-1]
                 data = json.loads(line)
             except Exception as e:
-                print(e)
                 raise Exception("Not valid json format")
     except Exception as e:
-        print(e)
-        print("No previous timers")
+        print("N/A")
         return
+
+    cntd = "00:00"
 
     sumToday = 0
     today = datetime.today().date()
@@ -87,9 +87,6 @@ def checkTime():
         if (lineData["end"] != 0) and (start.date() == today):
             sumToday += 1
 
-    print(sumToday)
-
-
     if data["end"] == 0:
         time = datetime.strptime(data["start"], datetimeFormat)
         endtime = time + timedelta(minutes=int(data["length"]))
@@ -98,15 +95,17 @@ def checkTime():
         if endtime < now:
             notify(data)
             data["end"] = endtime.strftime(datetimeFormat)
-            #print("FERDIG!")
             lines[-1] = json.dumps(data)
-            print("00:00")
+            cntd = "00:00"
             with open(file, 'w') as f:
                 f.write('\n'.join(lines) + '\n')
         else:
             cntd = ':'.join(str(diff).split(':')[1:])
             cntd = cntd.split('.')[0]
-            print(cntd)
+
+    tp = data["type"][0].upper()
+    returnString = "{} {} {}".format(sumToday, tp, cntd)
+    print(returnString)
 
 
 
@@ -122,8 +121,6 @@ def notify(data):
 
     subprocess.Popen(['notify-send', message])
     return
-
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
